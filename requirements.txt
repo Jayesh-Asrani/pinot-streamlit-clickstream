@@ -1,0 +1,11 @@
+sseclient-py
+confluent-kafka
+urllib3
+streamlit
+plotly
+pinotdb
+pandas
+requests
+dash
+watchdog
+ConfigParser
