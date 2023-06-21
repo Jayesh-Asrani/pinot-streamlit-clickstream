@@ -220,7 +220,7 @@ def session_analysis():
      SET timeoutMs=10000000;
 SELECT
   event_timestamp_day
-  ,COUNT(DISTINCT session_id) as total_sessions
+  ,COUNT(session_id) as total_sessions
   ,AVG(session_length) as total_time_spent
 FROM (
   SELECT
