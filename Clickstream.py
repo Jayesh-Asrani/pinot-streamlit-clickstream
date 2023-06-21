@@ -142,7 +142,7 @@ def event_ranking():
     curs = conn.cursor()
     curs.execute(query)
     df_metric_name = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
-    selected_metric = st.selectbox("Select Metric", df_metric_name['metric_name'], index=15,
+    selected_metric = st.selectbox("Select Metric", df_metric_name['metric_name'], index=17,
                                    on_change=select_metric_callback, key='select_metric')
 
     selected_date = st.date_input("Select Event Start Date", value=date(2023, 4, 1), on_change=select_date_callback,
@@ -203,7 +203,7 @@ def session_analysis():
     curs = conn.cursor()
     curs.execute(query)
     df_metric_name = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
-    selected_metric = st.selectbox("Select Metric", df_metric_name['metric_name'], index=36,
+    selected_metric = st.selectbox("Select Metric", df_metric_name['metric_name'], index=43,
                                    on_change=select_metric_callback, key='select_metric')
 
     selected_current_screen = st.text_input("Enter Current Screen", value='summary_checkout_view')
