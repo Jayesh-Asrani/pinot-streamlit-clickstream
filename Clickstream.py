@@ -365,12 +365,67 @@ ORDER BY 1"""
     st.dataframe(df_event_segmentation_analysis, use_container_width=True, height=150)
 
 
+def customer_analytics():
+    st.title("Customer Analytics")
+
+    query = """Select count(*) as Total,current_screen as Page from clickstream
+where current_screen <> 'null'
+group by current_screen
+order by 1 desc limit 5 """
+
+    curs = conn.cursor()
+    curs.execute(query)
+    df_top_pages = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
+
+    st.subheader("Top pages visited")
+
+    st.bar_chart(df_top_pages, use_container_width=True, x='Page', y='Total', height=500)
+
+    query = """Select count(*) as Total,platform from clickstream
+where platform <> 'null'
+group by platform	
+order by 1 desc """
+
+    curs = conn.cursor()
+    curs.execute(query)
+    df_top_platforms = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
+
+    st.subheader("Mobile Platform Distribution")
+
+    colors = ['Teal', 'mediumturquoise']
+    fig = px.pie(df_top_platforms, values='Total', names='platform', hole=.3, color=colors)
+    # fig.update_traces(hoverinfo='label+percent', textinfo='value', textfont_size=20,
+    #                 marker=dict(colors=colors))
+    st.plotly_chart(fig, use_container_width=True, height=500)
+
+    query = """
+    Select count(*) as Total,device_manufacturer as Manufacturer from clickstream
+where device_manufacturer <> 'null'
+group by device_manufacturer
+order by 1 desc
+limit 5"""
+
+    curs = conn.cursor()
+    curs.execute(query)
+    df_top_device_manufacturer = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
+
+    st.subheader("Total Device Manufacturers")
+
+    fig1 = px.line(df_top_device_manufacturer, x='Manufacturer', y='Total', markers=True)
+    fig1.update_xaxes(title='Manufacturer')
+    fig1.update_yaxes(title='Total')
+
+    # Display the filtered data as a table
+    st.plotly_chart(fig1, use_container_width=True)
+
+
 PAGES = {
     "Customer Lookup": customer_lookup,
     "Event Ranking": event_ranking,
     "Product Funnel": product_funnel,
     "Session Analysis": session_analysis,
-    "Event Segmentation Analysis": event_segmentation_analysis
+    "Event Segmentation Analysis": event_segmentation_analysis,
+    "Customer Analytics": customer_analytics
 
 }
 
