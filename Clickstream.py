@@ -409,7 +409,7 @@ limit 5"""
     curs.execute(query)
     df_top_device_manufacturer = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
 
-    st.subheader("Total Device Manufacturers")
+    st.subheader("Top Device Manufacturers")
 
     fig1 = px.line(df_top_device_manufacturer, x='Manufacturer', y='Total', markers=True)
     fig1.update_xaxes(title='Manufacturer')
