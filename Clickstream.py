@@ -368,54 +368,88 @@ ORDER BY 1"""
 def customer_analytics():
     st.title("Customer Analytics")
 
+    customer_id = st.text_input("Enter Customer ID", value='5d9cc6c1-e5eb-4008-901b-8dfd19caedf4')
+
+    st.subheader("Overview")
+    query = """
+    SELECT COUNT(DISTINCT session_id) AS unique_sessions,
+COUNT(DISTINCT device_id) as unique_devices
+FROM clickstream
+WHERE "customer_id" = %(customer_id)s
+    """
+
+    curs = conn.cursor()
+    curs.execute(query, {"customer_id": customer_id})
+    df_summary = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
+    metric1, metric2,metric3 = st.columns(3)
+
+    metric1.metric(
+        label="Total Number Of Sessions",
+        value=float(df_summary['unique_sessions'].values[0])
+
+
+    )
+
+    metric2.metric(
+        label="Unique Devices Used",
+        value=float(df_summary['unique_devices'].values[0])
+
+    )
+
+    metric3.metric(
+        label="Total Time Spent on App",
+        value=float(546)
+
+    )
+
     query = """Select count(*) as Total,current_screen as Page from clickstream
 where current_screen <> 'null'
+and "customer_id" = %(customer_id)s
 group by current_screen
 order by 1 desc limit 5 """
 
     curs = conn.cursor()
-    curs.execute(query)
+    curs.execute(query, {"customer_id": customer_id})
     df_top_pages = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
 
     st.subheader("Top pages visited")
 
     st.bar_chart(df_top_pages, use_container_width=True, x='Page', y='Total', height=500)
 
-    query = """Select count(*) as Total,platform from clickstream
-where platform <> 'null'
-group by platform	
-order by 1 desc """
-
-    curs = conn.cursor()
-    curs.execute(query)
-    df_top_platforms = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
-
-    st.subheader("Mobile Platform Distribution")
-
-    colors = ['Teal', 'mediumturquoise']
-    fig = px.pie(df_top_platforms, values='Total', names='platform', hole=.3, color=colors)
-    # fig.update_traces(hoverinfo='label+percent', textinfo='value', textfont_size=20,
-    #                 marker=dict(colors=colors))
-    st.plotly_chart(fig, use_container_width=True, height=500)
-
     query = """
-    Select count(*) as Total,device_manufacturer as Manufacturer from clickstream
-where device_manufacturer <> 'null'
-group by device_manufacturer
-order by 1 desc
-limit 5"""
+    SET useMultistageEngine = 'true';
+
+SELECT
+  event_timestamp_day
+  ,COUNT(1) as total_sessions
+  ,AVG(session_length) as average_time_spent
+FROM (
+  SELECT
+      event_timestamp_day
+      ,session_id
+  	  ,customer_id
+      ,(MAX(event_timestamp) - MIN(event_timestamp))/1000 AS session_length
+  FROM
+    clickstream
+  WHERE customer_id = '5d9cc6c1-e5eb-4008-901b-8dfd19caedf4'
+  GROUP BY 1,2,3
+) as sess
+GROUP BY 1
+ order by 2 desc
+limit 7"""
 
     curs = conn.cursor()
-    curs.execute(query)
-    df_top_device_manufacturer = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
+    curs.execute(query, queryOptions="timeoutMs=20000")
+    df_session_analysis = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
 
-    st.subheader("Top Device Manufacturers")
+    df_session_analysis['Event_Day'] = pd.to_datetime(df_session_analysis['event_timestamp_day'], unit='ms')
 
-    fig1 = px.line(df_top_device_manufacturer, x='Manufacturer', y='Total', markers=True)
-    fig1.update_xaxes(title='Manufacturer')
-    fig1.update_yaxes(title='Total')
+    st.subheader("Number Of Sessions Per Day")
 
-    # Display the filtered data as a table
+    fig1 = px.line(df_session_analysis, x='Event_Day', y='total_sessions', markers=True)
+    fig1.update_xaxes(title='Date')
+    fig1.update_yaxes(title='Total Sessions')
+
     st.plotly_chart(fig1, use_container_width=True)
 
 
