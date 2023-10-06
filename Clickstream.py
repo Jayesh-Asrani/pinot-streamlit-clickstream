@@ -9,7 +9,7 @@ from datetime import date, timedelta
 st.set_page_config(layout="wide")
 
 conn = connect(host='broker.pinot.saas.demo.startree.cloud', port=443, path='/query/sql', scheme='https',
-               username='b8b28d5af56547e88def8160595898ad', password='1tp5VFF2qgjU2p94Sd5pMRICVyRfd0CDv5SELaym3KQ=')
+               username=st.secrets["username"], password=st.secrets["password"])
 
 
 def product_funnel():
