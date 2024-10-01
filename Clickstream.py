@@ -8,82 +8,40 @@ from datetime import date, timedelta
 
 st.set_page_config(layout="wide")
 
-conn = connect(host='broker.pinot.saas.demo.startree.cloud', port=443, path='/query/sql', scheme='https',
+conn = connect(host='broker.pinot.flrg1s.s7e.startree.cloud', port=443, path='/query/sql', scheme='https',
                username=st.secrets["username"], password=st.secrets["password"])
+
 
 
 def product_funnel():
     st.header("Product Funnel")
 
     Metric_1 = 'pix_settings_list_item__clicked'
-    Metric_2 = 'my_keys_list_item__clicked'
-    Metric_3 = 'register_key_button_link__clicked'
-    Metric_4 = 'list_item__clicked'
-    Metric_5 = 'screen_opened'
 
     query = """
        SET timeoutMs=1000000;
        SET useMultistageEngine=false;
 
-       SELECT
-           DistinctCountThetaSketch(customer_id,
-             'nominalEntries=4096',
-             'metric_name='%(Metric_1)s'',
-             'SET_INTERSECT($1, $1)'
-           ) AS step_1
-         ,DistinctCountThetaSketch(customer_id,
-             'nominalEntries=4096',
-             'metric_name='%(Metric_1)s'',
-             'metric_name='%(Metric_2)s'',
-             'SET_INTERSECT($1, $2)'
-           ) AS step_2
-         ,DistinctCountThetaSketch(customer_id,
-             'nominalEntries=4096',
-             'metric_name='%(Metric_1)s'',
-             'metric_name='%(Metric_2)s'',
-             'metric_name='%(Metric_3)s'',
-             'SET_INTERSECT($1, $2, $3)'
-           ) AS step_3,
-            DistinctCountThetaSketch(customer_id,
-             'nominalEntries=4096',
-             'metric_name='%(Metric_1)s'',
-             'metric_name='%(Metric_2)s'',
-             'metric_name='%(Metric_3)s'',
-             'metric_name='%(Metric_4)s'
-               AND key_type IN (''email'', ''phone'')',
-             'SET_INTERSECT($1, $2, $3, $4)'
-           ) AS step_4,
-             DistinctCountThetaSketch(customer_id,
-             'nominalEntries=4096',
-             'metric_name='%(Metric_1)s'',
-             'metric_name='%(Metric_2)s'',
-             'metric_name='%(Metric_3)s'',
-             'metric_name='%(Metric_4)s'
-             AND key_type IN (''email'', ''phone'')',
-             'metric_name='%(Metric_5)s'
-               AND key_type IN (''dict/registerPhoneVerified'', ''dict/registerEmailVerified'') AND package=''pix''',
-             'SET_INTERSECT($1, $2, $3, $4,$5)'
-           ) AS step_5
-         FROM
-           clickstream
-       where
-         metric_name IN (
-            %(Metric_1)s
-             ,'my_keys_list_item__clicked'
-             ,'register_key_button_link__clicked'
-         ,'list_item__clicked'
-         ,'screen_opened') 
+select FUNNEL_COUNT(
+    STEPS(
+      metric_name = 'app__opened',
+      metric_name = 'bopp__screen_viewed',
+      metric_name = 'transfer_out_checkout_screen__viewed',
+      metric_name = 'location__requested'
+    ),
+    CORRELATE_BY(customer_id)
+  ) AS counts
+from clickstream
            """
 
     curs = conn.cursor()
-    curs.execute(query, {"Metric_1": Metric_1, "Metric_2": Metric_2, "Metric_3": Metric_3, "Metric_4": Metric_4,
-                         "Metric_5": Metric_5})
+    curs.execute(query)
     df_funnel = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
 
     data = dict(
-        number=[int(df_funnel['step_1']), int(df_funnel['step_2']), int(df_funnel['step_3']), int(df_funnel['step_4']),
-                int(df_funnel['step_5'])],
-        stage=["Step 1", "Step 2", "Step 3", "Step 4", "Step 5"])
+        number=[int(df_funnel['counts'][0][0]), int(df_funnel['counts'][0][1]), int(df_funnel['counts'][0][2]),
+                int(df_funnel['counts'][0][3])],
+        stage=["Step 1", "Step 2", "Step 3", "Step 4"])
     fig = px.funnel(data, x='number', y='stage')
     st.plotly_chart(fig, use_container_width=True)
 
@@ -96,7 +54,7 @@ def customer_lookup():
     st.title("Customer Lookup")
 
     # Input customer ID
-    customer_id = st.text_input("Enter Customer ID", value='5e9b17a8-b913-4b3c-92ef-b2708a3e417c')
+    customer_id = st.text_input("Enter Customer ID", value='cust_5de0864c-b8ac-42b5-002116')
 
     query = """
         SELECT
@@ -142,13 +100,13 @@ def event_ranking():
     curs = conn.cursor()
     curs.execute(query)
     df_metric_name = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
-    selected_metric = st.selectbox("Select Metric", df_metric_name['metric_name'], index=44,
+    selected_metric = st.selectbox("Select Metric", df_metric_name['metric_name'], index=2,
                                    on_change=select_metric_callback, key='select_metric')
 
-    selected_date = st.date_input("Select Event Start Date", value=date(2023, 4, 1), on_change=select_date_callback,
+    selected_date = st.date_input("Select Event Start Date", value=date(2024, 4, 1), on_change=select_date_callback,
                                   key='select_date')
 
-    to_date = str(selected_date + timedelta(days=7))
+    to_date = str(selected_date + timedelta(days=30))
     selected_date = str(selected_date)
 
     query = """
@@ -203,38 +161,38 @@ def session_analysis():
     curs = conn.cursor()
     curs.execute(query)
     df_metric_name = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
-    selected_metric = st.selectbox("Select Metric", df_metric_name['metric_name'], index=102,
+    selected_metric = st.selectbox("Select Metric", df_metric_name['metric_name'], index=0,
                                    on_change=select_metric_callback, key='select_metric')
 
-    selected_current_screen = st.text_input("Enter Current Screen", value='summary_checkout_view')
+    selected_current_screen = st.text_input("Enter Current Screen", value='onboarding')
 
-    selected_date = st.date_input("Select Event Start Date", value=date(2023, 4, 1), on_change=select_date_callback,
+    selected_date = st.date_input("Select Event Start Date", value=date(2024, 4, 1), on_change=select_date_callback,
                                   key='select_date')
 
-    to_date = str(selected_date + timedelta(days=7))
+    to_date = str(selected_date + timedelta(days=300))
     to_date = int((datetime.strptime(str(to_date), "%Y-%m-%d")).timestamp()) * 1000
     selected_date = int((datetime.strptime(str(selected_date), "%Y-%m-%d")).timestamp()) * 1000
 
     query = """
     SET useMultistageEngine=true;
      SET timeoutMs=10000000;
-SELECT
-  event_timestamp_day
-  ,COUNT(session_id) as total_sessions
-  ,AVG(session_length) as total_time_spent
-FROM (
-  SELECT
+    SELECT
       event_timestamp_day
-      ,session_id
-      ,SUB(
-        MAX(event_timestamp)
-        ,MIN(event_timestamp)
-      ) as session_length
-  FROM
-    "clickstream"
-  WHERE
-    metric_name = %(selected_metric)s
-  	AND current_screen = %(selected_current_screen)s
+      ,COUNT(DISTINCT session_id) as total_sessions
+      ,AVG(session_length) as total_time_spent
+    FROM (
+      SELECT
+          event_timestamp_day
+          ,session_id
+          ,SUB(
+            MAX(event_timestamp)
+            ,MIN(event_timestamp)
+          ) as session_length
+      FROM
+        "clickstream"
+      WHERE
+        metric_name = %(selected_metric)s
+        AND current_screen = %(selected_current_screen)s
    and event_timestamp BETWEEN %(selected_date)s AND %(to_date)s
   GROUP BY 1,2
 ) as sessions
@@ -279,61 +237,55 @@ def event_segmentation_analysis():
 SET useMultistageEngine=true;
 
 WITH parsed_events_per_day AS (
-  SELECT
-    event_timestamp_day as event_date
-    ,customer_id
-    ,metric_name
-    ,flow AS evp_flow
-    ,current_screen AS evp_current_screen
-    ,button AS evp_button
-FROM
-  "clickstream"
-WHERE
-  metric_name IN (
-    'bopp__button_clicked'
-    ,'bopp__screen_viewed'
-  ) and event_timestamp >= 1680307200000 and event_timestamp < 1680825600000
+  SELECT event_timestamp_day as event_date,
+    customer_id,
+    metric_name,
+    flow AS evp_flow,
+    current_screen AS evp_current_screen,
+    button AS evp_button
+  FROM "clickstream"
+  WHERE metric_name IN ('app__opened', 'bopp__screen_viewed')
+    and event_timestamp >= 1680307200000
+    and event_timestamp <= 1712275200000
 ),
 user_groups AS (
-  SELECT
-    event_date
-    ,customer_id
-    ,(
-      metric_name = 'bopp__button_clicked' 
-      AND evp_flow = 'bopp-enrollment'
-      AND evp_current_screen IN ('bopp-opt-in-screen')
-      AND evp_button = 'enroll'
-    ) as group_a
-  ,(
-    metric_name = 'bopp__screen_viewed' 
-    AND evp_current_screen = 'bopp-pedacinho-screen'
-  ) as group_b
-  ,SUM(CASE WHEN 
-      metric_name = 'bopp__button_clicked' 
-      AND evp_button = 'enroll'
-    THEN 1
-    ELSE 0
-    END) as user_performed_bopp_click
-  FROM
-    parsed_events_per_day
-  GROUP BY 1,2,3,4
+  SELECT event_date,
+    customer_id,
+(metric_name = 'app__opened') as group_a,
+(metric_name = 'bopp__screen_viewed') as group_b,
+    SUM(
+      CASE
+        WHEN metric_name = 'app__opened' THEN 1
+        ELSE 0
+      END
+    ) as user_performed_bopp_click
+  FROM parsed_events_per_day
+  GROUP BY 1,
+    2,
+    3,
+    4
 ),
 users_that_performed_enroll as (
-  SELECT
-    customer_id
-    ,SUM(user_performed_bopp_click) total_enrolls
-  FROM
-    user_groups
+  SELECT customer_id,
+    SUM(user_performed_bopp_click) total_enrolls
+  FROM user_groups
   GROUP BY 1
-  HAVING
-    total_enrolls > 0
+  HAVING total_enrolls > 0
 )
-SELECT
-  usg.event_date
-  ,COUNT(DISTINCT CASE WHEN group_a THEN usg.customer_id ELSE null END) as total_unique_users_group_a
-  ,COUNT(DISTINCT CASE WHEN group_b THEN usg.customer_id ELSE null END) as total_unique_users_group_b
-FROM 
-  user_groups usg
+SELECT usg.event_date,
+  COUNT(
+    DISTINCT CASE
+      WHEN group_a THEN usg.customer_id
+      ELSE null
+    END
+  ) as total_unique_users_group_a,
+  COUNT(
+    DISTINCT CASE
+      WHEN group_b THEN usg.customer_id
+      ELSE null
+    END
+  ) as total_unique_users_group_b
+FROM user_groups usg
   JOIN users_that_performed_enroll us_enroll ON (usg.customer_id = us_enroll.customer_id)
 GROUP BY 1
 ORDER BY 1"""
@@ -362,94 +314,7 @@ ORDER BY 1"""
 
     st.subheader("Raw Data")
 
-    st.dataframe(df_event_segmentation_analysis, use_container_width=True, height=150)
-
-
-def customer_analytics():
-    st.title("Customer Analytics")
-
-    customer_id = st.text_input("Enter Customer ID", value='5d9cc6c1-e5eb-4008-901b-8dfd19caedf4')
-
-    st.subheader("Overview")
-    query = """
-    SELECT COUNT(DISTINCT session_id) AS unique_sessions,
-COUNT(DISTINCT device_id) as unique_devices
-FROM clickstream
-WHERE "customer_id" = %(customer_id)s
-    """
-
-    curs = conn.cursor()
-    curs.execute(query, {"customer_id": customer_id})
-    df_summary = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
-    metric1, metric2,metric3 = st.columns(3)
-
-    metric1.metric(
-        label="Total Number Of Sessions",
-        value=float(df_summary['unique_sessions'].values[0])
-
-    )
-
-    metric2.metric(
-        label="Unique Devices Used",
-        value=float(df_summary['unique_devices'].values[0])
-
-    )
-
-    metric3.metric(
-        label="Total Time Spent on App",
-        value=float(546)
-
-    )
-
-    query = """Select count(*) as Total,current_screen as Page from clickstream
-where current_screen <> 'null'
-and "customer_id" = %(customer_id)s
-group by current_screen
-order by 1 desc limit 5 """
-
-    curs = conn.cursor()
-    curs.execute(query, {"customer_id": customer_id})
-    df_top_pages = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
-
-    st.subheader("Top pages visited")
-
-    st.bar_chart(df_top_pages, use_container_width=True, x='Page', y='Total', height=500)
-
-    query = """
-    SET useMultistageEngine = 'true';
-
-SELECT
-  event_timestamp_day
-  ,COUNT(1) as total_sessions
-  ,AVG(session_length) as average_time_spent
-FROM (
-  SELECT
-      event_timestamp_day
-      ,session_id
-  	  ,customer_id
-      ,(MAX(event_timestamp) - MIN(event_timestamp))/1000 AS session_length
-  FROM
-    clickstream
-  WHERE customer_id = '5d9cc6c1-e5eb-4008-901b-8dfd19caedf4'
-  GROUP BY 1,2,3
-) as sess
-GROUP BY 1
- order by 2 desc
-limit 7"""
-
-    curs = conn.cursor()
-    curs.execute(query, queryOptions="timeoutMs=20000")
-    df_session_analysis = pd.DataFrame(curs, columns=[item[0] for item in curs.description])
-
-    df_session_analysis['Event_Day'] = pd.to_datetime(df_session_analysis['event_timestamp_day'], unit='ms')
-
-    st.subheader("Number Of Sessions Per Day")
-
-    fig1 = px.line(df_session_analysis, x='Event_Day', y='total_sessions', markers=True)
-    fig1.update_xaxes(title='Date')
-    fig1.update_yaxes(title='Total Sessions')
-
-    st.plotly_chart(fig1, use_container_width=True)
+    st.dataframe(df_event_segmentation_analysis, use_container_width=True, height=200)
 
 
 PAGES = {
@@ -457,8 +322,7 @@ PAGES = {
     "Event Ranking": event_ranking,
     "Product Funnel": product_funnel,
     "Session Analysis": session_analysis,
-    "Event Segmentation Analysis": event_segmentation_analysis,
-    "Customer Analytics": customer_analytics
+    "Event Segmentation Analysis": event_segmentation_analysis
 
 }
 
@@ -494,4 +358,4 @@ section.main[tabindex='0'] div[data-testid='stVerticalBlock'] div.element-contai
 
 if auto_refresh:
     time.sleep(number)
-    st.experimental_rerun()
+    st.rerun(scope="app")
