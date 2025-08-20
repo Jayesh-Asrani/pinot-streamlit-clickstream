@@ -103,7 +103,7 @@ def event_ranking():
     selected_metric = st.selectbox("Select Metric", df_metric_name['metric_name'], index=2,
                                    on_change=select_metric_callback, key='select_metric')
 
-    selected_date = st.date_input("Select Event Start Date", value=date(2024, 4, 1), on_change=select_date_callback,
+    selected_date = st.date_input("Select Event Start Date", value=date(2025, 7, 1), on_change=select_date_callback,
                                   key='select_date')
 
     to_date = str(selected_date + timedelta(days=30))
@@ -166,7 +166,7 @@ def session_analysis():
 
     selected_current_screen = st.text_input("Enter Current Screen", value='onboarding')
 
-    selected_date = st.date_input("Select Event Start Date", value=date(2024, 4, 1), on_change=select_date_callback,
+    selected_date = st.date_input("Select Event Start Date", value=date(2025, 7, 1), on_change=select_date_callback,
                                   key='select_date')
 
     to_date = str(selected_date + timedelta(days=300))
